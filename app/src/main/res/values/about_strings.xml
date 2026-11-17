@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="about">关于</string>
+    <string name="about_version">版本 %1$s</string>
+    <string name="about_miuix">MIUIX 开源项目</string>
+    <string name="about_manager">KernelSU Manager 项目</string>
+    <string name="about_boundo">Boundo 开源项目</string>
+    <string name="about_donut">Donut 图表项目</string>
+</resources>
