@@ -100,8 +100,8 @@ fun StatisticsPage(preferences: AppPreferences, modifier: Modifier = Modifier, c
         StatisticLegendRow(stringResource(R.string.legacy_icon), statistics.legacyApps, statistics.legacyRatio, legacyColor, surfaceColor, textColor, secondaryTextColor)
         Spacer(Modifier.height(16.dp))
         Text(
-            "已检查 ${statistics.inspectedApps} / ${statistics.totalApps} 个应用" +
-                if (statistics.unavailableApps > 0) "，${statistics.unavailableApps} 个图标不可用" else "",
+            stringResource(R.string.statistics_checked, statistics.inspectedApps, statistics.totalApps) +
+                if (statistics.unavailableApps > 0) stringResource(R.string.statistics_unavailable, statistics.unavailableApps) else "",
             color = secondaryTextColor,
         )
     }

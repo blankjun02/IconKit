@@ -17,6 +17,8 @@ class AppsViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var isRefreshing by mutableStateOf(false)
         private set
+    var isManualRefresh by mutableStateOf(false)
+        private set
     var hasLoaded by mutableStateOf(false)
         private set
     var error by mutableStateOf<Throwable?>(null)
@@ -34,6 +36,7 @@ class AppsViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun loadAppList(force: Boolean) {
         if (isRefreshing || (!force && hasLoaded)) return
+        isManualRefresh = force
         isRefreshing = true
         error = null
         viewModelScope.launch {
@@ -50,6 +53,7 @@ class AppsViewModel(application: Application) : AndroidViewModel(application) {
                 error = failure
             } finally {
                 isRefreshing = false
+                isManualRefresh = false
             }
         }
     }

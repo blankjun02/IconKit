@@ -6,7 +6,7 @@ plugins {
 android {
     namespace = "com.blacksoft.iconkit"
     compileSdk {
-        version = release(37)
+        version = release(37) { minorApiLevel = 2 }
     }
 
     defaultConfig {
@@ -63,6 +63,7 @@ dependencies {
     implementation(libs.miuix.preference)
     implementation(libs.miuix.icons)
     implementation(libs.miuix.blur)
+    implementation(libs.miuix.glass)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     debugImplementation(libs.androidx.compose.ui.tooling)

@@ -10,6 +10,7 @@ import androidx.compose.runtime.setValue
 enum class UiStyle { MIUIX, MATERIAL3 }
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 enum class IconDetectionSource { APK, SYSTEM_API }
+val iconRenderSizes = listOf(48, 72, 96, 144, 192, 432, 512)
 
 class AppPreferences(context: Context) {
     private val preferences = context.getSharedPreferences("appearance", Context.MODE_PRIVATE)
@@ -50,6 +51,8 @@ class AppPreferences(context: Context) {
         }.getOrDefault(IconDetectionSource.APK)
     )
         private set
+    var iconRenderSize by mutableIntStateOf(preferences.getInt("icon_render_size", 512).takeIf { it in iconRenderSizes } ?: 512)
+        private set
 
     fun updateUiStyle(value: UiStyle) = update("ui_style", value.name) { uiStyle = value }
     fun updateThemeMode(value: ThemeMode) = update("theme_mode", value.name) { themeMode = value }
@@ -70,6 +73,9 @@ class AppPreferences(context: Context) {
     fun updateShowAppFilterMenu(value: Boolean) { showAppFilterMenu = value }
     fun updateIconDetectionSource(value: IconDetectionSource) =
         update("icon_detection_source", value.name) { iconDetectionSource = value }
+    fun updateIconRenderSize(value: Int) {
+        if (value in iconRenderSizes) update("icon_render_size", value) { iconRenderSize = value }
+    }
 
     private inline fun update(key: String, value: Any, apply: () -> Unit) {
         apply()

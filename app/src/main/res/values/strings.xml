@@ -31,6 +31,8 @@
     <string name="legacy_icon">非自适应</string>
     <string name="adaptive_detection">自适应图标判断方式</string>
     <string name="adaptive_detection_summary">选择统计与列表标识使用的图标来源</string>
+    <string name="icon_render_resolution">图标渲染分辨率</string>
+    <string name="icon_render_resolution_summary">选择预览、保存和分享的 PNG 尺寸</string>
     <string name="apk_resource">APK 原始资源</string>
     <string name="system_api">系统 API 运行时图标</string>
     <string name="icon_details">图标资源</string>
@@ -42,6 +44,13 @@
     <string name="preview_rounded">圆角</string>
     <string name="preview_squircle">超椭圆</string>
     <string name="preview_round">圆形</string>
+    <string name="preview_square">正方形</string>
+    <string name="preview_coolpad">酷派</string>
+    <string name="preview_apple">苹果</string>
+    <string name="preview_samsung">三星</string>
+    <string name="preview_xiaomi">小米</string>
+    <string name="preview_teardrop">水滴</string>
+    <string name="preview_cylinder">圆筒</string>
     <string name="runtime_icon">运行时图标</string>
     <string name="apk_normal_icon">APK 普通图标</string>
     <string name="apk_round_icon">APK 圆形图标</string>
@@ -53,4 +62,21 @@
     <string name="floating_navigation_bar">悬浮底栏</string>
     <string name="about_telegram">Telegram 频道</string>
     <string name="about_github">GitHub 项目</string>
+    <string name="copied">已复制</string>
+    <string name="invert_preview_background">反转预览背景颜色</string>
+    <string name="show_preview_shadow">显示图标阴影</string>
+    <string name="hide_preview_shadow">隐藏图标阴影</string>
+    <string name="icon_actions">图标操作</string>
+    <string name="icon_open">打开</string>
+    <string name="icon_share">分享</string>
+    <string name="icon_save">保存</string>
+    <string name="icon_action_failed">操作失败，请重试</string>
+    <string name="icon_saved">已保存</string>
+    <string name="icon_original_format">原始类型：%1$s · %2$s</string>
+    <string name="icon_save_original">保存原始资源</string>
+    <string name="icon_background_color">原始类型：色值 · %1$s</string>
+    <string name="send_selected_apps">发送 %1$d 个应用</string>
+    <string name="share_icon_resources">分享图标资源</string>
+    <string name="statistics_checked">已检查 %1$d / %2$d 个应用</string>
+    <string name="statistics_unavailable">，%1$d 个图标不可用</string>
 </resources>

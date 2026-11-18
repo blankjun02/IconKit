@@ -2,6 +2,8 @@ package com.blacksoft.iconkit
 
 import android.os.Build
 import android.os.Bundle
+import android.view.RoundedCorner
+import android.annotation.SuppressLint
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -9,8 +11,11 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -37,6 +42,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -90,6 +96,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -125,6 +135,7 @@ import com.blacksoft.iconkit.ui.AppIconDetailScreen
 import com.blacksoft.iconkit.ui.AboutScreen
 import com.blacksoft.iconkit.ui.ManagerStyleDropdownItem
 import com.blacksoft.iconkit.ui.IconDetectionSource
+import com.blacksoft.iconkit.ui.iconRenderSizes
 import com.blacksoft.iconkit.ui.ManagerBlurredBar
 import com.blacksoft.iconkit.ui.rememberManagerBlurBackdrop
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -164,6 +175,7 @@ import com.blacksoft.iconkit.ui.icons.IconKitGlassIcons
 import com.blacksoft.iconkit.ui.icons.OuterScreenApps
 import com.blacksoft.iconkit.ui.icons.AppData
 import com.blacksoft.iconkit.ui.icons.SettingsFill
+import com.blacksoft.iconkit.ui.icons.RenderResolutionIcon
 import top.yukonga.miuix.kmp.icon.basic.ArrowRight
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.PagerNavigationSpringSpec
@@ -172,6 +184,11 @@ import top.yukonga.miuix.kmp.blur.LayerBackdrop
 import top.yukonga.miuix.kmp.blur.textureBlur
 import top.yukonga.miuix.kmp.blur.BlurDefaults
 import top.yukonga.miuix.kmp.blur.BlendColorEntry
+import top.yukonga.miuix.kmp.blur.progressiveTextureBlur
+import top.yukonga.miuix.kmp.blur.ProgressiveBlur
+import androidx.compose.ui.graphics.RectangleShape
+import top.yukonga.miuix.kmp.glass.GlassNavigationBar
+import top.yukonga.miuix.kmp.glass.GlassNavigationItem
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
 import top.yukonga.miuix.kmp.basic.TopAppBar as MiuixTopAppBar
@@ -264,16 +281,30 @@ private fun MainShell(preferences: AppPreferences, pagerState: PagerState) {
     val selectedApp = appsViewModel.selectedApp
     var displayedApp by remember { mutableStateOf<InspectedApp?>(null) }
     LaunchedEffect(selectedApp) { if (selectedApp != null) displayedApp = selectedApp }
+    var backProgress by remember { mutableStateOf(0f) }
+    val overlayVisible = preferences.showThemePage || preferences.showAboutPage || selectedApp != null
+    val coveredProgress by animateFloatAsState(
+        targetValue = if (overlayVisible) 1f - backProgress.coerceIn(0f, 1f) else 0f,
+        animationSpec = tween(if (backProgress > 0f) 0 else 220),
+        label = "coveredPage",
+    )
+    val layoutDirection = LocalLayoutDirection.current
 
     Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().graphicsLayer {
+            translationX = (if (layoutDirection == LayoutDirection.Rtl) 1f else -1f) * size.width * .25f * coveredProgress
+            alpha = 1f - .1f * coveredProgress
+        }) {
         when (preferences.uiStyle) {
             UiStyle.MATERIAL3 -> MaterialShell(preferences, false, pagerState)
             UiStyle.MIUIX -> MiuixShell(preferences, false, pagerState)
+        }
         }
 
         PredictivePageOverlay(
             visible = preferences.showThemePage,
             enabled = selectedApp == null && !preferences.showAboutPage,
+            onBackProgress = { backProgress = it },
             onBack = preferences::closeThemePage,
         ) {
             when (preferences.uiStyle) {
@@ -285,6 +316,7 @@ private fun MainShell(preferences: AppPreferences, pagerState: PagerState) {
         PredictivePageOverlay(
             visible = preferences.showAboutPage,
             enabled = selectedApp == null,
+            onBackProgress = { backProgress = it },
             onBack = preferences::closeAboutPage,
         ) {
             AboutScreen(preferences.uiStyle, preferences.enableBlur, preferences::closeAboutPage)
@@ -292,9 +324,10 @@ private fun MainShell(preferences: AppPreferences, pagerState: PagerState) {
 
         PredictivePageOverlay(
             visible = selectedApp != null,
+            onBackProgress = { backProgress = it },
             onBack = appsViewModel::closeDetails,
         ) {
-            displayedApp?.let { AppIconDetailScreen(it, preferences.uiStyle, appsViewModel::closeDetails) }
+            displayedApp?.let { AppIconDetailScreen(it, preferences.uiStyle, preferences.enableBlur, preferences.iconRenderSize, appsViewModel::closeDetails) }
         }
     }
 }
@@ -303,10 +336,13 @@ private fun MainShell(preferences: AppPreferences, pagerState: PagerState) {
 private fun PredictivePageOverlay(
     visible: Boolean,
     enabled: Boolean = true,
+    onBackProgress: (Float) -> Unit,
     onBack: () -> Unit,
     content: @Composable () -> Unit,
 ) {
     val backProgress = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    val cornerRadius = rememberSystemWindowCornerRadius()
     LaunchedEffect(visible) {
         if (!visible && backProgress.value != 0f) {
             delay(350)
@@ -315,11 +351,23 @@ private fun PredictivePageOverlay(
     }
     PredictiveBackHandler(enabled = visible && enabled) { events ->
         try {
-            events.collect { event -> backProgress.snapTo(event.progress) }
+            events.collect { event -> backProgress.snapTo(event.progress); onBackProgress(event.progress) }
             onBack()
+            onBackProgress(0f)
         } catch (_: CancellationException) {
-            backProgress.animateTo(0f, spring())
+            // The gesture coroutine is cancelled on a cancelled back; recover in a live scope.
+            scope.launch {
+                backProgress.animateTo(0f, spring()) { onBackProgress(value) }
+                onBackProgress(0f)
+            }
         }
+    }
+    AnimatedVisibility(visible = visible, enter = fadeIn(), exit = fadeOut()) {
+        Box(
+            Modifier.fillMaxSize()
+                .graphicsLayer { alpha = .5f * (1f - backProgress.value.coerceIn(0f, 1f)) }
+                .background(Color.Black),
+        )
     }
     AnimatedVisibility(
         visible = visible,
@@ -332,9 +380,28 @@ private fun PredictivePageOverlay(
                 val scale = 1f - backProgress.value * .04f
                 scaleX = scale
                 scaleY = scale
+                shape = RoundedCornerShape(cornerRadius)
+                clip = cornerRadius > 0.dp
             }
         ) { content() }
     }
+}
+
+@SuppressLint("DiscouragedApi")
+@Composable
+private fun rememberSystemWindowCornerRadius(): androidx.compose.ui.unit.Dp {
+    val view = LocalView.current
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val insets = view.rootWindowInsets
+    val radiusPx = remember(view, insets, context) {
+        val rounded = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            insets?.getRoundedCorner(RoundedCorner.POSITION_BOTTOM_LEFT)?.radius?.takeIf { it > 0 }
+        } else null
+        rounded ?: context.resources.getIdentifier("rounded_corner_radius_bottom", "dimen", "android")
+            .takeIf { it != 0 }?.let(context.resources::getDimensionPixelSize) ?: 0
+    }
+    return with(density) { radiusPx.toDp() }
 }
 
 private val tabTitles = intArrayOf(R.string.all_apps, R.string.statistics, R.string.settings)
@@ -401,7 +468,13 @@ private fun SlidingMaterialTopBars(preferences: AppPreferences, pagerState: Page
 @Composable
 private fun MiuixShell(preferences: AppPreferences, showThemePage: Boolean, pagerState: PagerState) {
     val scrollBehavior = MiuixScrollBehavior()
-    val blurBackdrop = rememberManagerBlurBackdrop(preferences.enableBlur)
+    val appsBackdrop = rememberManagerBlurBackdrop(preferences.enableBlur)
+    val statisticsBackdrop = rememberManagerBlurBackdrop(preferences.enableBlur)
+    val settingsBackdrop = rememberManagerBlurBackdrop(preferences.enableBlur)
+    // As in the MIUIX demo, the bottom bar samples one layer containing the composed pager.
+    val pagerBackdrop = rememberManagerBlurBackdrop(preferences.enableBlur)
+    val pageBackdrops = listOf(appsBackdrop, statisticsBackdrop, settingsBackdrop)
+    val blurBackdrop = pageBackdrops[pagerState.currentPage]
     if (showThemePage) {
         MiuixScaffold(
             topBar = {
@@ -420,22 +493,22 @@ private fun MiuixShell(preferences: AppPreferences, showThemePage: Boolean, page
     }
     MiuixScaffold(
         topBar = {
-            ManagerBlurredBar(blurBackdrop) {
+            ManagerBlurredBar(if (pagerState.currentPage == 0) null else blurBackdrop) {
                 SlidingMiuixTopBars(preferences, pagerState, scrollBehavior, blurBackdrop != null)
             }
         },
         bottomBar = {
             if (preferences.floatingNavigationBar) {
-                MiuixFloatingBottomBar(pagerState, blurBackdrop)
+                MiuixFloatingBottomBar(pagerState, pagerBackdrop)
             } else {
-                ManagerBlurredBar(blurBackdrop) {
-                    MiuixBottomBar(pagerState, transparent = blurBackdrop != null)
+                ManagerBlurredBar(pagerBackdrop) {
+                    MiuixBottomBar(pagerState, transparent = pagerBackdrop != null)
                 }
             }
         }
     ) { padding ->
-        Box(modifier = if (blurBackdrop != null) Modifier.layerBackdrop(blurBackdrop) else Modifier) {
-            Page(preferences, pagerState, Modifier.fillMaxSize(), scrollBehavior, padding)
+        Box(Modifier.fillMaxSize().then(if (pagerBackdrop != null) Modifier.layerBackdrop(pagerBackdrop) else Modifier)) {
+            Page(preferences, pagerState, Modifier.fillMaxSize(), scrollBehavior, padding, pageBackdrops)
         }
     }
 }
@@ -466,25 +539,14 @@ private fun SlidingMiuixTopBars(
 private fun MiuixFloatingBottomBar(pagerState: PagerState, backdrop: LayerBackdrop?) {
     val scope = rememberCoroutineScope()
     val icons = listOf(IconKitGlassIcons.OuterScreenApps, IconKitGlassIcons.AppData, IconKitGlassIcons.SettingsFill)
-    val surface = MiuixTheme.colorScheme.surfaceContainer
-    FloatingNavigationBar(
-        modifier = if (backdrop != null) Modifier.textureBlur(
-            backdrop = backdrop,
-            shape = RoundedCornerShape(FloatingToolbarDefaults.CornerRadius),
-            blurRadius = 25f,
-            colors = BlurDefaults.blurColors(blendColors = listOf(BlendColorEntry(surface.copy(alpha = .6f)))),
-        ) else Modifier,
-        color = if (backdrop != null) Color.Transparent else surface,
-    ) {
-        tabTitles.forEachIndexed { index, title ->
-            FloatingNavigationBarItem(
-                selected = pagerState.navigationSelectedPage == index,
-                onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
-                icon = icons[index],
-                label = stringResource(title),
-            )
-        }
-    }
+    val items = tabTitles.mapIndexed { index, title -> GlassNavigationItem(icon = icons[index], label = stringResource(title)) }
+    GlassNavigationBar(
+        items = items,
+        selectedIndex = pagerState.navigationSelectedPage,
+        onSelect = { index -> scope.launch { pagerState.animateScrollToPage(index) } },
+        backdrop = backdrop,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+    )
 }
 
 @Composable
@@ -517,6 +579,8 @@ private fun Page(
     modifier: Modifier,
     miuixScrollBehavior: ScrollBehavior? = null,
     contentPadding: PaddingValues = PaddingValues(0.dp),
+    backdrops: List<LayerBackdrop?> = emptyList(),
+    onSearchBottomChanged: (androidx.compose.ui.unit.Dp) -> Unit = {},
 ) {
     val flingBehavior = PagerDefaults.flingBehavior(
         state = pagerState,
@@ -530,12 +594,13 @@ private fun Page(
         beyondViewportPageCount = 2,
         verticalAlignment = Alignment.Top,
     ) { page ->
+        val backdrop = backdrops.getOrNull(page)
         when (page) {
-            0 -> AllAppsPage(preferences, Modifier.fillMaxSize(), miuixScrollBehavior, contentPadding)
-            1 -> StatisticsPage(preferences, Modifier.fillMaxSize(), contentPadding)
+            0 -> AllAppsPage(preferences, Modifier.fillMaxSize(), miuixScrollBehavior, contentPadding, backdrop, onSearchBottomChanged)
+            1 -> StatisticsPage(preferences, Modifier.fillMaxSize().then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier), contentPadding)
             else -> when (preferences.uiStyle) {
                 UiStyle.MATERIAL3 -> MaterialSettings(preferences, Modifier.fillMaxSize())
-                UiStyle.MIUIX -> MiuixSettings(preferences, Modifier.fillMaxSize(), miuixScrollBehavior, contentPadding)
+                UiStyle.MIUIX -> MiuixSettings(preferences, Modifier.fillMaxSize().then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier), miuixScrollBehavior, contentPadding)
             }
         }
     }
@@ -614,6 +679,8 @@ private fun AllAppsPage(
     modifier: Modifier,
     miuixScrollBehavior: ScrollBehavior? = null,
     contentPadding: PaddingValues = PaddingValues(0.dp),
+    backdrop: LayerBackdrop? = null,
+    onSearchBottomChanged: (androidx.compose.ui.unit.Dp) -> Unit = {},
 ) {
     val appsViewModel = viewModel<AppsViewModel>()
     val apps = appsViewModel.apps
@@ -660,7 +727,7 @@ private fun AllAppsPage(
 
     if (preferences.uiStyle == UiStyle.MIUIX) {
         MiuixAppsContent(preferences, modifier, visibleApps, query, { query = it }, appsViewModel,
-            selected, onAppClick, onAppLongClick, shareSelection, miuixScrollBehavior, contentPadding)
+            selected, onAppClick, onAppLongClick, shareSelection, miuixScrollBehavior, contentPadding, backdrop, onSearchBottomChanged)
         return
     }
 
@@ -701,7 +768,7 @@ private fun AllAppsPage(
         FloatingActionButton(
             onClick = shareSelection,
             modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp),
-        ) { Icon(Icons.AutoMirrored.Filled.Send, "发送 ${selected.size} 个应用") }
+        ) { Icon(Icons.AutoMirrored.Filled.Send, stringResource(R.string.send_selected_apps, selected.size)) }
     }
     }
 }
@@ -720,53 +787,65 @@ private fun MiuixAppsContent(
     onShare: () -> Unit,
     scrollBehavior: ScrollBehavior?,
     contentPadding: PaddingValues,
+    backdrop: LayerBackdrop?,
+    onSearchBottomChanged: (androidx.compose.ui.unit.Dp) -> Unit,
 ) {
-    var searchExpanded by remember { mutableStateOf(false) }
     val refreshState = rememberMiuixPullToRefreshState()
+    var searchExpanded by remember { mutableStateOf(false) }
+    var searchHeight by remember { mutableStateOf(0) }
+    val searchHeightDp = with(LocalDensity.current) { searchHeight.toDp() }
+    val listTop = contentPadding.calculateTopPadding() + searchHeightDp
+    LaunchedEffect(listTop) { onSearchBottomChanged(listTop) }
     Box(modifier.fillMaxSize()) {
-    Column(Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            MiuixSearchBar(
-                modifier = Modifier.weight(1f),
-                inputField = {
-                    MiuixInputField(
-                        query = query,
-                        onQueryChange = onQuery,
-                        onSearch = { searchExpanded = false },
-                        expanded = searchExpanded,
-                        onExpandedChange = { searchExpanded = it },
-                        label = stringResource(R.string.search_apps),
-                    )
-                },
-                expanded = searchExpanded,
-                onExpandedChange = { searchExpanded = it },
-                content = { }
-            )
-        }
-        Spacer(Modifier.height(12.dp))
-        when {
-            viewModel.isRefreshing && !viewModel.hasLoaded -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { MiuixCircularProgressIndicator() }
-            viewModel.error != null && !viewModel.hasLoaded -> MiuixEmptyState(stringResource(R.string.load_failed))
-            apps.isEmpty() -> MiuixEmptyState(stringResource(R.string.no_apps))
-            else -> MiuixPullToRefresh(
-                isRefreshing = viewModel.isRefreshing,
-                onRefresh = viewModel::refresh,
+        MiuixPullToRefresh(
+                isRefreshing = viewModel.isRefreshing && viewModel.isManualRefresh,
+                onRefresh = { if (!viewModel.isRefreshing) viewModel.refresh() },
                 pullToRefreshState = refreshState,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().then(if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier),
+                contentPadding = PaddingValues(top = listTop),
                 refreshTexts = listOf(
                     stringResource(R.string.refresh_pulling),
                     stringResource(R.string.refresh_release),
                     stringResource(R.string.refresh_refresh),
                     stringResource(R.string.refresh_complete),
                 ),
-            ) { MiuixAppList(apps, preferences.iconDetectionSource, selected, onClick, onLongClick, scrollBehavior, contentPadding.calculateBottomPadding()) }
-        }
+            ) { MiuixAppList(apps, preferences.iconDetectionSource, selected, onClick, onLongClick, scrollBehavior, contentPadding, listTop, viewModel) }
+    if (backdrop != null && searchHeight > 0) {
+        Box(
+            Modifier.fillMaxWidth().height(listTop)
+                .textureBlur(
+                    backdrop = backdrop,
+                    shape = RectangleShape,
+                    blurRadius = 25f,
+                    colors = BlurDefaults.blurColors(blendColors = listOf(BlendColorEntry(MiuixTheme.colorScheme.surface.copy(alpha = .8f)))),
+                ),
+        )
+    }
+    Box(Modifier.fillMaxWidth().padding(top = contentPadding.calculateTopPadding())) {
+    Column(
+        Modifier.fillMaxWidth()
+            .onSizeChanged { searchHeight = it.height }
+            .then(if (backdrop == null) Modifier.background(MiuixTheme.colorScheme.surface) else Modifier),
+    ) {
+        MiuixSearchBar(
+            modifier = Modifier.fillMaxWidth(),
+            inputField = {
+                MiuixInputField(
+                    query = query, onQueryChange = onQuery,
+                    onSearch = { searchExpanded = false }, expanded = searchExpanded,
+                    onExpandedChange = { searchExpanded = it }, label = stringResource(R.string.search_apps),
+                )
+            },
+            expanded = searchExpanded, onExpandedChange = { searchExpanded = it }, content = {},
+        )
+        Spacer(Modifier.height(12.dp))
+    }
     }
     if (selected.isNotEmpty()) {
         MiuixFloatingActionButton(
             onClick = onShare,
             modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = contentPadding.calculateBottomPadding() + 20.dp, end = 20.dp),
-        ) { MiuixIcon(Icons.AutoMirrored.Filled.Send, "发送 ${selected.size} 个应用", tint = Color.White) }
+        ) { MiuixIcon(Icons.AutoMirrored.Filled.Send, stringResource(R.string.send_selected_apps, selected.size), tint = Color.White) }
     }
     }
 }
@@ -823,7 +902,9 @@ private fun MiuixAppList(
     apps: List<InspectedApp>, detectionSource: IconDetectionSource, selected: Set<String>,
     onClick: (InspectedApp) -> Unit, onLongClick: (InspectedApp) -> Unit,
     scrollBehavior: ScrollBehavior?,
-    bottomPadding: androidx.compose.ui.unit.Dp,
+    contentPadding: PaddingValues,
+    listTop: androidx.compose.ui.unit.Dp,
+    viewModel: AppsViewModel,
 ) {
     LazyColumn(
         modifier = Modifier
@@ -834,8 +915,15 @@ private fun MiuixAppList(
             )
             .overScrollVertical(),
         overscrollEffect = null,
-        contentPadding = PaddingValues(bottom = bottomPadding + 16.dp)
+        contentPadding = PaddingValues(top = listTop, bottom = contentPadding.calculateBottomPadding() + 16.dp)
     ) {
+        if (viewModel.isRefreshing && !viewModel.hasLoaded) {
+            item { Box(Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) { MiuixCircularProgressIndicator() } }
+        } else if (viewModel.error != null && !viewModel.hasLoaded) {
+            item { Box(Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) { MiuixText(stringResource(R.string.load_failed)) } }
+        } else if (apps.isEmpty()) {
+            item { Box(Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) { MiuixText(stringResource(R.string.no_apps)) } }
+        }
         itemsIndexed(apps, key = { _, app -> app.packageName }) { _, app ->
             top.yukonga.miuix.kmp.basic.Card(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
@@ -971,6 +1059,14 @@ private fun MiuixSettings(
                     selectedIndex = preferences.iconDetectionSource.ordinal,
                     onSelectedIndexChange = { preferences.updateIconDetectionSource(IconDetectionSource.entries[it]) }
                 )
+                OverlayDropdownPreference(
+                    title = stringResource(R.string.icon_render_resolution),
+                    summary = stringResource(R.string.icon_render_resolution_summary),
+                    startAction = { top.yukonga.miuix.kmp.basic.Icon(RenderResolutionIcon, null) },
+                    items = iconRenderSizes.map { "$it × $it px" },
+                    selectedIndex = iconRenderSizes.indexOf(preferences.iconRenderSize),
+                    onSelectedIndexChange = { preferences.updateIconRenderSize(iconRenderSizes[it]) },
+                )
                 ArrowPreference(
                     title = stringResource(R.string.about),
                     startAction = { top.yukonga.miuix.kmp.basic.Icon(Icons.Filled.Info, null) },
@@ -994,11 +1090,11 @@ private fun MaterialSettings(preferences: AppPreferences, modifier: Modifier) {
                     selectedIndex = preferences.uiStyle.ordinal,
                     onItemSelected = { preferences.updateUiStyle(UiStyle.entries[it]) },
                     index = 0,
-                    count = 4,
+                    count = 5,
                 )
                 SegmentedListItem(
                     onClick = preferences::openThemePage,
-                    shapes = ListItemDefaults.segmentedShapes(1, 4),
+                    shapes = ListItemDefaults.segmentedShapes(1, 5),
                     leadingContent = { Icon(Icons.Filled.Palette, null) },
                     content = { Text(stringResource(R.string.theme)) },
                     supportingContent = { Text(stringResource(R.string.theme_summary)) },
@@ -1012,12 +1108,23 @@ private fun MaterialSettings(preferences: AppPreferences, modifier: Modifier) {
                     selectedIndex = preferences.iconDetectionSource.ordinal,
                     onItemSelected = { preferences.updateIconDetectionSource(IconDetectionSource.entries[it]) },
                     index = 2,
-                    count = 4,
+                    count = 5,
+                    showSelectorIndicator = true,
+                )
+                ManagerStyleDropdownItem(
+                    icon = RenderResolutionIcon,
+                    title = stringResource(R.string.icon_render_resolution),
+                    summary = stringResource(R.string.icon_render_resolution_summary),
+                    items = iconRenderSizes.map { "$it × $it px" },
+                    selectedIndex = iconRenderSizes.indexOf(preferences.iconRenderSize),
+                    onItemSelected = { preferences.updateIconRenderSize(iconRenderSizes[it]) },
+                    index = 3,
+                    count = 5,
                     showSelectorIndicator = true,
                 )
                 SegmentedListItem(
                     onClick = preferences::openAboutPage,
-                    shapes = ListItemDefaults.segmentedShapes(3, 4),
+                    shapes = ListItemDefaults.segmentedShapes(4, 5),
                     leadingContent = { Icon(Icons.Filled.Info, null) },
                     content = { Text(stringResource(R.string.about)) },
                     trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) },

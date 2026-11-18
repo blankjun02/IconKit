@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.core.content.FileProvider
+import com.blacksoft.iconkit.R
 import java.io.File
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
@@ -29,7 +30,7 @@ object IconRequestArchive {
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(intent, "分享图标资源"))
+        context.startActivity(Intent.createChooser(intent, context.getString(R.string.share_icon_resources)))
     }
 
     private fun buildAppFilter(packageManager: PackageManager, apps: List<InspectedApp>): String = buildString {
