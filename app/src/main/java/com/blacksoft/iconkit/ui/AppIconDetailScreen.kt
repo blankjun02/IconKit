@@ -124,11 +124,15 @@ private fun IconPageContent(app: InspectedApp, padding: PaddingValues, style: Ui
 
 @Composable
 private fun IconSection(entry: BoundoIconEntry, style: UiStyle) {
-    Column(Modifier.padding(horizontal = 20.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.horizontalScroll(rememberScrollState())) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
             entry.labels.forEachIndexed { index, label ->
                 if (index > 0) Spacer(Modifier.width(8.dp))
-                Text(label.name, fontWeight = FontWeight.Medium)
+                if (style == UiStyle.MIUIX) {
+                    MiuixText(label.name, color = MiuixTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
+                } else {
+                    Text(label.name, fontWeight = FontWeight.Medium)
+                }
                 Spacer(Modifier.width(4.dp))
                 if (style == UiStyle.MIUIX) {
                     MiuixText(
@@ -149,13 +153,19 @@ private fun IconSection(entry: BoundoIconEntry, style: UiStyle) {
                 }
             }
         }
-        entry.resourceName?.let { Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        entry.resourceName?.let {
+            if (style == UiStyle.MIUIX) {
+                MiuixText(it, modifier = Modifier.padding(horizontal = 20.dp), color = MiuixTheme.colorScheme.onSurfaceVariantSummary, fontSize = 12.sp)
+            } else {
+                Text(it, modifier = Modifier.padding(horizontal = 20.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
         Spacer(Modifier.height(10.dp))
         val drawable = entry.drawable
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && drawable is AdaptiveIconDrawable) {
             AdaptiveContent(drawable, style, showRuntime = entry.key == "runtime")
         } else {
-            Row(Modifier.horizontalScroll(rememberScrollState())) {
+            Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
                 if (entry.key == "runtime") {
                     LabeledIcon(drawable, stringResource(R.string.preview_theme), RoundedCornerShape(0.dp), style)
                 } else {
@@ -284,25 +294,27 @@ private fun AdaptiveContent(icon: AdaptiveIconDrawable, style: UiStyle, showRunt
         add(icon.foreground to R.string.foreground_layer)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) icon.monochrome?.let { add(it to R.string.monochrome_layer) }
     }
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
         layers.forEach { (drawable, label) -> LabeledIcon(drawable, stringResource(label), style = style) }
     }
     Spacer(Modifier.height(10.dp))
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
         if (showRuntime) {
             LabeledIcon(icon, stringResource(R.string.preview_theme), RoundedCornerShape(0.dp), style)
         }
         val previews = listOf(
             "完整" to RoundedCornerShape(0.dp),
+            "正方形" to IconMaskShape("M50,0L100,0 100,100 0,100 0,0z"),
+            "酷派" to IconMaskShape("M0 46.5409C0 24.6013 0 13.6315 6.81575 6.81575C13.6315 0 24.6013 0 46.5409 0H53.4591C75.3987 0 86.3685 0 93.1842 6.81575C100 13.6315 100 24.6013 100 46.5409V53.4591C100 75.3987 100 86.3685 93.1842 93.1842C86.3685 100 75.3987 100 53.4591 100H46.5409C24.6013 100 13.6315 100 6.81575 93.1842C0 86.3685 0 75.3987 0 53.4591V46.5409Z"),
             "圆形" to CircleShape,
             "三星" to IconMaskShape("M50,0 C10,0 0,10 0,50 0,90 10,100 50,100 90,100 100,90 100,50 100,10 90,0 50,0 Z"),
             "水滴" to IconMaskShape("M50,0A50,50,0,0 1 100,50 L100,85 A15,15,0,0 1 85,100 L50,100 A50,50,0,0 1 50,0z"),
-            "正方形" to IconMaskShape("M50,0L100,0 100,100 0,100 0,0z"),
             "小米" to IconMaskShape("M98.1,26l-.6-2.3-.2-.6-.4-1.3-.7-1.6-.9-2-.7-1.3-1.3-2.2-.5-.8-.5-.6-1.7-2.1-2.1-2-.4-.4-.5-.4L85.4,6.8,83.7,5.7,82.3,5,79.2,3.5h-.5L75.3,2.2l-1.2-.3L72,1.4h-.6L69.3,1l-2-.3h-.9l-2-.2H35.6L33.7.6h-.9l-2,.3-2.2.3H28l-2,.5-1.3.3L21.3,3.4h-.4L17.7,4.9l-1.4.8-1.6,1L12.4,8.4l-.5.4-.4.4-2.1,2L7.7,13.3l-.4.6-.6.8L5.4,16.9l-.7,1.3-.9,2-.6,1.6-.5,1.3-.2.6L1.9,26l-.4,1.6v1L.8,31.8v1.1L.5,34.3.3,36.2V63.9l.2,1.8.2,1.4v1.2l.5,3.1v1l.4,1.7.6,2.2.2.6.5,1.3.6,1.7.9,1.9.7,1.4,1.3,2.1.6.8.4.6,1.7,2.1,2.1,2.1.4.3.5.4,2.3,1.7,1.6,1,1.4.8,3.2,1.4h.4l3.4,1.1,1.2.3,2.1.5h.6l2.2.4,2,.2h.9l1.9.2H64.4l1.9-.2h.9l2-.2,2.2-.4H72l2.1-.5,1.2-.3,3.4-1.1h.4l3.2-1.4,1.4-.8,1.6-1,2.3-1.7.5-.4.4-.3,2.1-2.1,1.7-2.1.4-.6.6-.8,1.3-2.1.7-1.4.9-1.9.6-1.7.5-1.3.2-.6.6-2.2.4-1.7v-1l.5-3.1V67.1l.2-1.4.2-1.8V36.2l-.2-1.9-.2-1.4V31.8l-.5-3.2v-1Z"),
             "苹果" to IconMaskShape("M100 68.717C100 69.913 100 71.107 99.991 72.3C99.985 73.307 99.974 74.313 99.948 75.317C99.92 77.518 99.727 79.713 99.37 81.885C98.998 84.059 98.304 86.163 97.311 88.13C95.297 92.083 92.083 95.297 88.13 97.311C86.164 98.303 84.06 98.996 81.889 99.367C79.715 99.726 77.52 99.92 75.32 99.946C74.314 99.972 73.308 99.987 72.302 99.991C71.107 99.998 69.913 99.998 68.72 99.998H31.28C30.087 99.998 28.893 99.998 27.698 99.991C26.692 99.988 25.686 99.973 24.68 99.948C22.479 99.92 20.283 99.726 18.111 99.367C15.939 98.998 13.835 98.302 11.87 97.311C7.917 95.298 4.703 92.085 2.689 88.133C1.696 86.164 1.002 84.058 0.63 81.885C0.273 79.714 0.08 77.519 0.052 75.32C0.026 74.313 0.013 73.307 0.009 72.3C0 71.104 0 69.913 0 68.717V31.283C0 30.087 0 28.891 0.009 27.696C0.013 26.691 0.026 25.685 0.052 24.68C0.08 22.481 0.273 20.286 0.63 18.115C1.002 15.941 1.696 13.837 2.689 11.867C4.703 7.914 7.917 4.701 11.87 2.687C13.836 1.695 15.938 1.002 18.109 0.63C20.283 0.274 22.478 0.08 24.678 0.052C25.685 0.026 26.691 0.013 27.696 0.009C28.891 0.002 30.087 0.002 31.278 0.002H68.717C69.913 0.002 71.109 0.002 72.302 0.009C73.308 0.012 74.314 0.027 75.32 0.052C77.52 0.08 79.715 0.274 81.887 0.63C84.061 1.002 86.163 1.696 88.13 2.687C92.084 4.7 95.299 7.914 97.313 11.867C98.305 13.835 98.999 15.94 99.37 18.113C99.727 20.285 99.92 22.48 99.948 24.68C99.974 25.687 99.987 26.693 99.991 27.698C100 28.893 100 30.087 100 31.28V68.717Z"),
         )
-        previews.forEachIndexed { index, (label, shape) ->
-            LabeledIcon(if (index == 0) unmasked else viewport, label, shape, style)
+        val order = listOf("完整", "正方形", "苹果", "酷派", "小米", "三星", "水滴", "圆形")
+        previews.sortedBy { order.indexOf(it.first) }.forEach { (label, shape) ->
+            LabeledIcon(if (label == "完整") unmasked else viewport, label, shape, style)
         }
     }
 }
@@ -334,7 +346,11 @@ private fun LabeledIcon(drawable: Drawable, label: String, shape: Shape = Rounde
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         BoundoIconImage(drawable, shape, style)
         Spacer(Modifier.height(4.dp))
-        Text(label, style = MaterialTheme.typography.labelSmall)
+        if (style == UiStyle.MIUIX) {
+            MiuixText(label, color = MiuixTheme.colorScheme.onSurface, fontSize = 11.sp)
+        } else {
+            Text(label, style = MaterialTheme.typography.labelSmall)
+        }
     }
 }
 
@@ -349,6 +365,7 @@ private fun BoundoIconImage(drawable: Drawable, shape: Shape = RoundedCornerShap
     Card(
         shape = RoundedCornerShape(4.dp),
         border = if (style == UiStyle.MIUIX) null else BorderStroke(.5.dp, Color(0xFF3DDC84)),
+        colors = if (style == UiStyle.MIUIX) CardDefaults.cardColors(containerColor = MiuixTheme.colorScheme.surfaceContainer) else CardDefaults.cardColors(),
         elevation = CardDefaults.cardElevation(0.dp),
     ) {
         Box(

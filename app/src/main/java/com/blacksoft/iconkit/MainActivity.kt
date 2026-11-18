@@ -163,7 +163,7 @@ import top.yukonga.miuix.kmp.icon.extended.Sort
 import com.blacksoft.iconkit.ui.icons.IconKitGlassIcons
 import com.blacksoft.iconkit.ui.icons.OuterScreenApps
 import com.blacksoft.iconkit.ui.icons.AppData
-import top.yukonga.miuix.kmp.icon.extended.Settings
+import com.blacksoft.iconkit.ui.icons.SettingsFill
 import top.yukonga.miuix.kmp.icon.basic.ArrowRight
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.PagerNavigationSpringSpec
@@ -287,7 +287,7 @@ private fun MainShell(preferences: AppPreferences, pagerState: PagerState) {
             enabled = selectedApp == null,
             onBack = preferences::closeAboutPage,
         ) {
-            AboutScreen(preferences.uiStyle, preferences::closeAboutPage)
+            AboutScreen(preferences.uiStyle, preferences.enableBlur, preferences::closeAboutPage)
         }
 
         PredictivePageOverlay(
@@ -465,7 +465,7 @@ private fun SlidingMiuixTopBars(
 @Composable
 private fun MiuixFloatingBottomBar(pagerState: PagerState, backdrop: LayerBackdrop?) {
     val scope = rememberCoroutineScope()
-    val icons = listOf(IconKitGlassIcons.OuterScreenApps, IconKitGlassIcons.AppData, MiuixIcons.Settings)
+    val icons = listOf(IconKitGlassIcons.OuterScreenApps, IconKitGlassIcons.AppData, IconKitGlassIcons.SettingsFill)
     val surface = MiuixTheme.colorScheme.surfaceContainer
     FloatingNavigationBar(
         modifier = if (backdrop != null) Modifier.textureBlur(
@@ -495,7 +495,7 @@ private fun MiuixBottomBar(pagerState: PagerState, transparent: Boolean = false)
         showDivider = true,
         mode = NavigationBarDisplayMode.IconAndText,
     ) {
-        val icons = listOf(IconKitGlassIcons.OuterScreenApps, IconKitGlassIcons.AppData, MiuixIcons.Settings)
+        val icons = listOf(IconKitGlassIcons.OuterScreenApps, IconKitGlassIcons.AppData, IconKitGlassIcons.SettingsFill)
         tabTitles.forEachIndexed { index, title ->
             MiuixNavigationBarItem(
                 selected = pagerState.navigationSelectedPage == index,
